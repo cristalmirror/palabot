@@ -1,5 +1,9 @@
 use teloxide::prelude::*;
 use teloxide::utils::command::BotCommands;
+use serpapi::serpapi::Client;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 
 //enum of the commands list and compiler settings
@@ -12,12 +16,8 @@ enum Commands {
     Cumpleaños(String),
     #[description("Silencia a un usuario por una hora (Solo Admins). ")]
     Bloqueo(String),
+
 }
-
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::Mutex;
-
 //Structure to own DB json
 type Db Arc<Mutex<HashMap<String,String>>>;
 
@@ -49,6 +49,7 @@ async fn answer(
     
     match cmd {
         Commands::Buscarengoogle(query) => {
+            let mut options = HashMap::new();
             //here integer the logic of find extern
             bot.send_message(msg.chat.id, format!("Resultado de Busquedas... \n {query}")).await;
         }
