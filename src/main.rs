@@ -10,16 +10,16 @@ use std::sync::Mutex;
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase", description = "Commandos disponibles:")]
 enum Commands {
-    #[description("Buscar informacionen Google... ")]
+    #[command( description = "Buscar informacionen Google... ")]
     Buscarengoogle(String),
-    #[description("Muestra el cumpleaños de un usuario... ")]
+    #[command( description = "Muestra el cumpleaños de un usuario... ")]
     Cumpleaños(String),
-    #[description("Silencia a un usuario por una hora (Solo Admins). ")]
+    #[command( description = "Silencia a un usuario por una hora (Solo Admins). ")]
     Bloqueo(String),
 
 }
 //Structure to own DB json
-type Db Arc<Mutex<HashMap<String,String>>>;
+type Db = Arc<Mutex<HashMap<String,String>>>;
 
 //main function with tokio traits
 #[tokio::main]
@@ -30,11 +30,11 @@ async fn main() {
     //charger the data base JSON (simple)
 
     let handler = Update::filter_message()
-        .filter_command::<Commands>
+        .filter_command::<Commands>()
         .endpoint(answer);
     
     Dispatcher::builder(bot, handler)
-        .dependecies(dptree::desp![db])
+        .dependencies(dptree::deps![db])
         .build()
         .dispatch()
         .await;
@@ -50,11 +50,22 @@ async fn answer(
     match cmd {
         Commands::Buscarengoogle(query) => {
             let mut options = HashMap::new();
+            options.insert("api_key".to_string(), "SER_API_KEY".to_string());
+            options.insert("engine".to_string(), "google_ia_overviem".to_string());
+            options.insert("q".to_string(),query);
+
+            let client = Client::new(options).unwrap();
+            let results = client.search(HashMap::new())
+                                .await.map_err(|_| ResponseError::Network)?;
+            let respose_ia = results["ia_overview"]["answer"]
+                                .as_str()
+                                .unwrap_or("Not find a respose of the IA");
+                 
             //here integer the logic of find extern
-            bot.send_message(msg.chat.id, format!("Resultado de Busquedas... \n {query}")).await;
+            bot.send_message(msg.chat.id, respose_ia).await;
         }
-        commands::Cumpleaños(mencion) => {
-            let data = db.lock().await;
+        Commands::Cumpleaños(mencion) => {
+            let data = db.lock();
             //find the name in the json charger [8,9]
             let respuesta = data.get(&mencion)
                 .map(|fecha| format!("el cumpleaños de {mencion} es el {fecha}"))
