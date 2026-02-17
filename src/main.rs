@@ -11,7 +11,7 @@ pub type Error = Box<dyn std::error::Error + Send + Sync>;
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase", description = "Commandos disponibles:")]
 enum Commands {
-    #[command( description = "Buscar informacionen Google... ")]
+    #[command( description = "Buscar informacion en Google... ")]
     Buscarengoogle(String),
     #[command( description = "Muestra el cumpleaños de un usuario... ")]
     Cumpleaños(String),
@@ -29,7 +29,7 @@ async fn main() -> Result<(), Error> {
     let args: Vec<String> = env::args().collect();
 
     let token = if args.len() > 1 {
-        args[4].clone()
+        args[1].clone()
     } else {
         env::var("TELOXIDE_TOKEN").expect("[SERVER] Error: Debes pasar el token como parámetro (./tsbpal TOKEN) o configurar TELOXIDE_TOKEN")
     };
