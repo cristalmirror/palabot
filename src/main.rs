@@ -4,7 +4,8 @@ use serpapi::serpapi::Client;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
-
+use std::env;
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
 //enum of the commands list and compiler settings
 #[derive(BotCommands, Clone)]
@@ -23,8 +24,17 @@ type Db = Arc<Mutex<HashMap<String,String>>>;
 
 //main function with tokio traits
 #[tokio::main]
-async fn main() {
-    let bot = Bot::from_env();
+async fn main() -> Result<(), Error> {
+    //collect the arguments to execute the token
+    let args: Vec<String> = env::args().collect();
+
+    let token = if args.len() > 1 {
+        args[4].clone()
+    } else {
+        env::var("TELOXIDE_TOKEN").expect("[SERVER] Error: Debes pasar el token como parámetro (./tsbpal TOKEN) o configurar TELOXIDE_TOKEN")
+    };
+
+    let bot = Bot::new(token);
     let db: Db = Arc::new(Mutex::new(HashMap::new()));
 
     //charger the data base JSON (simple)
@@ -38,39 +48,40 @@ async fn main() {
         .build()
         .dispatch()
         .await;
-
+    Ok(())
 }
 
 async fn answer(
     bot: Bot,
     msg: Message, 
     cmd: Commands, 
-    db: Db,) -> ResponseResult<()> {
+    db: Db,) -> Result<(), Error> {
     
     match cmd {
         Commands::Buscarengoogle(query) => {
             let mut options = HashMap::new();
             options.insert("api_key".to_string(), "SER_API_KEY".to_string());
-            options.insert("engine".to_string(), "google_ia_overviem".to_string());
+            options.insert("engine".to_string(), "google_ia_overview".to_string());
             options.insert("q".to_string(),query);
 
             let client = Client::new(options).unwrap();
             let results = client.search(HashMap::new())
-                                .await.map_err(|_| ResponseError::Network)?;
+                                .await.expect("request");
             let respose_ia = results["ia_overview"]["answer"]
                                 .as_str()
                                 .unwrap_or("Not find a respose of the IA");
                  
             //here integer the logic of find extern
-            bot.send_message(msg.chat.id, respose_ia).await;
+            let _ = bot.send_message(msg.chat.id, respose_ia).await;
         }
         Commands::Cumpleaños(mencion) => {
-            let data = db.lock();
-            //find the name in the json charger [8,9]
-            let respuesta = data.get(&mencion)
-                .map(|fecha| format!("el cumpleaños de {mencion} es el {fecha}"))
-                .unwrap_or_else(|| "Usuarios no encontrado en la base de datos.".to_string());
-            bot.send_message(msg.chat.id, respuesta).await;
+            let respuesta = {
+                let data = db.lock().expect("Error in mutex");
+                    data.get(&mencion)
+                        .map(|fecha| format!("el cumpleaños {mencion} es el {fecha}"))
+                        .unwrap_or_else(|| "Usuario no encontrado en la base de datos JSON".to_string())
+                };
+           let _ = bot.send_message(msg.chat.id, respuesta).await;
         }
         Commands::Bloqueo(mencion) => {
             //La logica de bloqueo requiere verificar permisos de admin
