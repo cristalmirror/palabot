@@ -14,7 +14,7 @@ enum Commands {
     #[command( description = "Buscar informacion en Google... ")]
     Buscarengoogle(String),
     #[command( description = "Muestra el cumpleaños de un usuario... ")]
-    Cumpleaños(String),
+    Cumpleanios(String),
     #[command( description = "Silencia a un usuario por una hora (Solo Admins). ")]
     Bloqueo(String),
 
@@ -60,21 +60,28 @@ async fn answer(
     match cmd {
         Commands::Buscarengoogle(query) => {
             let mut options = HashMap::new();
-            options.insert("api_key".to_string(), "SER_API_KEY".to_string());
-            options.insert("engine".to_string(), "google_ia_overview".to_string());
+            options.insert("api_key".to_string(), "bbd122104a3f435f7c66b3a1efe415c93719eead3df758e8638816cd078eaa22".to_string());
+            options.insert("engine".to_string(), "google".to_string());
             options.insert("q".to_string(),query);
 
             let client = Client::new(options).unwrap();
             let results = client.search(HashMap::new())
                                 .await.expect("request");
-            let respose_ia = results["ia_overview"]["answer"]
-                                .as_str()
-                                .unwrap_or("Not find a respose of the IA");
-                 
-            //here integer the logic of find extern
-            let _ = bot.send_message(msg.chat.id, respose_ia).await;
+            println!("Resultado JSON: {}", serde_json::to_string_pretty(&results).unwrap());
+            if let Some(references) = results["ai_overview"]["references"].as_array() {
+                if !references.is_empty() {
+                    let respose_ia = &references["snippet"]          
+                        .as_str()
+                        .unwrap_or("No se encontró una respuesta de la IA.");               
+                   let _ = bot.send_message(msg.chat.id, respose_ia).await;
+                } else {
+                   let _ = bot.send_message(msg.chat.id, "No se encontraron referencias.").await;
+                }
+            } else {
+                bot.send_message(msg.chat.id, "Google no proporcionó referencias de IA.").await?;
+            }
         }
-        Commands::Cumpleaños(mencion) => {
+        Commands::Cumpleanios(mencion) => {
             let respuesta = {
                 let data = db.lock().expect("Error in mutex");
                     data.get(&mencion)
