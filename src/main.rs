@@ -34,7 +34,7 @@ async fn main() -> Result<(), Error> {
         env::var("TELOXIDE_TOKEN").expect("[SERVER] Error: Debes pasar el token como parámetro (./tsbpal TOKEN) o configurar TELOXIDE_TOKEN")
     };
 
-    let bot = Bot::new(token);
+    let bot = Bot::with_client(token, teloxide::net::client_from_env());
     let db: Db = Arc::new(Mutex::new(HashMap::new()));
 
     //charger the data base JSON (simple)
@@ -60,7 +60,7 @@ async fn answer(
     match cmd {
         Commands::Buscarengoogle(query) => {
             let mut options = HashMap::new();
-            options.insert("api_key".to_string(), "bbd122104a3f435f7c66b3a1efe415c93719eead3df758e8638816cd078eaa22".to_string());
+            options.insert("api_key".to_string(), "SERPAPI_TOKEN".to_string());
             options.insert("engine".to_string(), "google".to_string());
             options.insert("q".to_string(),query);
 
@@ -68,15 +68,22 @@ async fn answer(
             let results = client.search(HashMap::new())
                                 .await.expect("request");
             println!("Resultado JSON: {}", serde_json::to_string_pretty(&results).unwrap());
-            if let Some(references) = results["ai_overview"]["references"].as_array() {
+            if let Some(references) = results["ai_overview"]["snippet"].as_array() {
                 if !references.is_empty() {
-                    let respose_ia = &references["snippet"]          
+                    let respose_ia = references[0]["snippet"]          
                         .as_str()
                         .unwrap_or("No se encontró una respuesta de la IA.");               
                    let _ = bot.send_message(msg.chat.id, respose_ia).await;
                 } else {
                    let _ = bot.send_message(msg.chat.id, "No se encontraron referencias.").await;
                 }
+            } else if let Some(first_result) = results["organic_results"].as_array().and_then(|a| a.get(0)) {//if haven't ia snippet in the JSON respose
+                let title = first_result["title"].as_str().unwrap_or("Sin título");
+                let link = first_result["link"].as_str().unwrap_or("");
+                let snippet = first_result["snippet"].as_str().unwrap_or("");
+        
+                let respuesta = format!("🌐 Resultado principal:\n\n**{}**\n{}\n\n{}", title, snippet, link);
+                bot.send_message(msg.chat.id, respuesta).await?;
             } else {
                 bot.send_message(msg.chat.id, "Google no proporcionó referencias de IA.").await?;
             }
