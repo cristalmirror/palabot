@@ -59,8 +59,9 @@ async fn answer(
     
     match cmd {
         Commands::Buscarengoogle(query) => {
+            let args: Vec<String> = env::args().collect();
             let mut options = HashMap::new();
-            options.insert("api_key".to_string(), "SERPAPI_TOKEN".to_string());
+            options.insert("api_key".to_string(), args[2].clone());
             options.insert("engine".to_string(), "google".to_string());
             options.insert("q".to_string(),query);
 
@@ -68,7 +69,7 @@ async fn answer(
             let results = client.search(HashMap::new())
                                 .await.expect("request");
             println!("Resultado JSON: {}", serde_json::to_string_pretty(&results).unwrap());
-            if let Some(references) = results["ai_overview"]["snippet"].as_array() {
+            if let Some(references) = results["ai_overview"]["snippet"].as_array() {//trying catch the IA reference
                 if !references.is_empty() {
                     let respose_ia = references[0]["snippet"]          
                         .as_str()
