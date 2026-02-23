@@ -8,7 +8,7 @@ use std::env;
 use serde::Deserialize;
 use chrono::{Local, Datelike, Duration as ChronoDuration};
 
-use std::time::Duration;
+
 
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -55,7 +55,10 @@ async fn main() -> Result<(), Error> {
     let bot = Bot::with_client(token, teloxide::net::client_from_env());
     let db: Db = Arc::new(Mutex::new(HashMap::new()));
 
-    //charger the data base JSON (simple)
+    /*charger the data base JSON (simple)
+        this operation don't stop the thread
+        in the main fucion scope
+    */
     let bot_for_scheduler = bot.clone();
     tokio::spawn(async move {
         start_birtday_scheduler(bot_for_scheduler).await;
@@ -123,7 +126,7 @@ async fn answer(
         Commands::Bloqueo(mencion) => {
             //La logica de bloqueo requiere verificar permisos de admin
             //Teloxide maneja estas peticiones a la API de telegram [4]
-           
+          bot.send_message(msg.chat.id, format!("Usuario Bloqueado: {}", mencion)).await?;
         }
     }
     Ok(())
