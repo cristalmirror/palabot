@@ -5,7 +5,25 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::env;
+use serde::Deserialize;
+use chrono::{Local, Datelike, Duration};
+
+use std::time::Duration;
+
+
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
+
+#[derive(Deserialize)]
+struct User {
+    name: String,
+    birthday: String,
+    chat_id: i64,
+}
+
+#[derive(Deserielize)]
+struct Database{
+    users: Vec<User>,//list of users
+}
 
 //enum of the commands list and compiler settings
 #[derive(BotCommands, Clone)]
@@ -33,11 +51,15 @@ async fn main() -> Result<(), Error> {
     } else {
         env::var("TELOXIDE_TOKEN").expect("[SERVER] Error: Debes pasar el token como parámetro (./tsbpal TOKEN) o configurar TELOXIDE_TOKEN")
     };
-
+    
     let bot = Bot::with_client(token, teloxide::net::client_from_env());
     let db: Db = Arc::new(Mutex::new(HashMap::new()));
 
     //charger the data base JSON (simple)
+    let bot_for_scheduler = bot.clone();
+    tokio::spawn(async move {
+        start_birtday_scheduler(bot_for_scheduler).await;
+    });
 
     let handler = Update::filter_message()
         .filter_command::<Commands>()
@@ -101,8 +123,52 @@ async fn answer(
         Commands::Bloqueo(mencion) => {
             //La logica de bloqueo requiere verificar permisos de admin
             //Teloxide maneja estas peticiones a la API de telegram [4]
-            bot.send_message(msg.chat.id, format!("Usuarios {mencion} silenciado por 1 hora.")).await?;
+            bot.send_message(
+                ChatId(user.chat_id), 
+                format!("🎉 ¡Atención grupo! Hoy es el cumple de {} 🎂\n¡Toda la palabanda esta de fiestaa!!!", user.name)
+            ).await?;
         }
     }
     Ok(())
+}
+
+async fn check_birthdays(bot: Bot) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    //catch the date today formated 
+    let now = Local::now();
+    let today = format!("{:02}-{:02}", now.day(),now.month());
+
+    //read the archive in JSON database
+    let data = std::fs::read_to_string("db.json")?;
+    //we use serder JSON to interprete the structure
+    let db: Database = serde_json::from_str(&data)?;
+
+    for user in db.users {
+        if user.birthday == today {
+            //send message
+            bot.send_message(msg.chat.id,format!("Feliz Cumpleaños {} Toda la palabanda esta de fiestaa!!!",user.name)).await;
+        }
+    }
+    Ok(())
+}
+
+async fn start_birtday_scheduler(bot: Bot) {
+    loop {
+        let now = Local::now();
+
+        //we calculated the midnigth of the next day
+        let next_run() = (now + Duration::days(1))
+            .date_native()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_local_timezone(Local)
+            .unwrap();
+        
+        let duration_until_midnight = (next_run - now).to_std().unwrap();
+        //the bot waiting the asynchronus form without block other functions
+        tokio::time::sleep(duration_until_midnight).await;
+
+        if let Err(e) = check_birthdays(bot.clone()).await {
+            log::error!("Error en la tarea de Cumleaños: {}",e);
+        }
+    }
 }
