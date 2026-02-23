@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::env;
 use serde::Deserialize;
-use chrono::{Local, Datelike, Duration};
+use chrono::{Local, Datelike, Duration as ChronoDuration};
 
 use std::time::Duration;
 
@@ -20,7 +20,7 @@ struct User {
     chat_id: i64,
 }
 
-#[derive(Deserielize)]
+#[derive(Deserialize)]
 struct Database{
     users: Vec<User>,//list of users
 }
@@ -123,10 +123,7 @@ async fn answer(
         Commands::Bloqueo(mencion) => {
             //La logica de bloqueo requiere verificar permisos de admin
             //Teloxide maneja estas peticiones a la API de telegram [4]
-            bot.send_message(
-                ChatId(user.chat_id), 
-                format!("🎉 ¡Atención grupo! Hoy es el cumple de {} 🎂\n¡Toda la palabanda esta de fiestaa!!!", user.name)
-            ).await?;
+           
         }
     }
     Ok(())
@@ -145,7 +142,10 @@ async fn check_birthdays(bot: Bot) -> Result<(), Box<dyn std::error::Error + Sen
     for user in db.users {
         if user.birthday == today {
             //send message
-            bot.send_message(msg.chat.id,format!("Feliz Cumpleaños {} Toda la palabanda esta de fiestaa!!!",user.name)).await;
+           bot.send_message(
+                ChatId(user.chat_id), 
+                format!("¡Feliz Cumpleaños {}! Toda la palabanda está de fiesta.", user.name)
+            ).await?;
         }
     }
     Ok(())
@@ -156,8 +156,8 @@ async fn start_birtday_scheduler(bot: Bot) {
         let now = Local::now();
 
         //we calculated the midnigth of the next day
-        let next_run() = (now + Duration::days(1))
-            .date_native()
+        let next_run = (now + ChronoDuration::days(1))
+            .date_naive()
             .and_hms_opt(0, 0, 0)
             .unwrap()
             .and_local_timezone(Local)
