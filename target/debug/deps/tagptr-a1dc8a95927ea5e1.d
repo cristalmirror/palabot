@@ -1,0 +1,12 @@
+/home/crisal/palabot/target/debug/deps/tagptr-a1dc8a95927ea5e1.d: /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/lib.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/macros.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/macros/doc.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/atomic.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/non_null.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/ptr.rs
+
+/home/crisal/palabot/target/debug/deps/libtagptr-a1dc8a95927ea5e1.rlib: /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/lib.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/macros.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/macros/doc.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/atomic.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/non_null.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/ptr.rs
+
+/home/crisal/palabot/target/debug/deps/libtagptr-a1dc8a95927ea5e1.rmeta: /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/lib.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/macros.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/macros/doc.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/atomic.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/non_null.rs /home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/ptr.rs
+
+/home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/lib.rs:
+/home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/macros.rs:
+/home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/macros/doc.rs:
+/home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/atomic.rs:
+/home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/non_null.rs:
+/home/crisal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tagptr-0.2.0/src/imp/ptr.rs:

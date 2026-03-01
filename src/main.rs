@@ -80,7 +80,7 @@ async fn answer(
     bot: Bot,
     msg: Message, 
     cmd: Commands, 
-    db: Db,) -> Result<(), Error> {
+    ) -> Result<(), Error> {
     
     match cmd {
         Commands::Buscarengoogle(query) => {
@@ -115,13 +115,38 @@ async fn answer(
             }
         }
         Commands::Cumpleanios(mencion) => {
-            let respuesta = {
-                let data = db.lock().expect("Error in mutex");
-                    data.get(&mencion)
-                        .map(|fecha| format!("el cumpleaños {mencion} es el {fecha}"))
-                        .unwrap_or_else(|| "Usuario no encontrado en la base de datos JSON".to_string())
-                };
-           let _ = bot.send_message(msg.chat.id, respuesta).await;
+            println!("[BOT]: cumpleanios init");
+            //read the db archive
+            let data = std::fs::read_to_string("db.json").expect("[BOT]: can't read the DB of the bot");
+            println!("[BOT]: db has read");
+            //interprete the content of json with serde
+            let db: Database = match serde_json::from_str(&data) {
+                Ok(val) => val,
+                Err(e) => {
+                    println!("[BOT] ERROR de formato en JSON: {}", e);
+                    return Ok(()); // Salimos sin que el bot muera
+                }
+            };
+            println!("[BOT]: db has ported to Rust code");
+            //find the user in the list 
+            let mut finded = false; 
+            for user in db.users {
+                if user.name == mencion {
+                    bot.send_message(msg.chat.id, format!("🎂 El cumpleaños de {} es el {}.", user.name, user.birthday)).await?;
+                    println!("[BOT]: El cumpleaños de {} es el {}.", user.name, user.birthday);
+                    finded = true;
+                    break;
+                }
+            }
+            if finded {
+                println!("[BOT]: user is finded fine");
+            }
+
+            //if the name not exist in the data base send error messages
+            if !finded {
+                bot.send_message(msg.chat.id, format!("❌ No encontré a {} en mi base de datos.", mencion)).await?;
+                println!("[BOT]: No encontré a {} en mi base de datos.", mencion);
+            }
         }
         Commands::Bloqueo(mencion) => {
             //La logica de bloqueo requiere verificar permisos de admin
@@ -131,6 +156,7 @@ async fn answer(
     }
     Ok(())
 }
+
 
 async fn check_birthdays(bot: Bot) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     //catch the date today formated 
