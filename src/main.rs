@@ -157,12 +157,12 @@ async fn answer(
         }
 
         Commands::Start => {
-            bot.send_message(msg.chat.id, format!("  🪏Bienvenido al Palabot🪏🪏Coamndos:
+             bot.send_message(msg.chat.id, format!("  🪏Bienvenido al Palabot🪏🪏Coamndos:
             \n\n🪏`/start` Muestra la lista de comandos del palabot
-            \n🪏`/buscarengoogle <texto de la busqueda>`este comando arroja el primer resultado de la busqueda en goole, permite maximo 256 busquedas al mes
-            \n🪏`/cumpleanios <@usuario>` Pemite arrojal la fecha de cumpleanios del usuario mencionado
-            \n🪏`/bloque <@usuario> <1hs/1min/etc>` (operacion no implementada) permitira a los admins cilenciar a un usuario por un tiempo predeterminado
-            \n🪏Gracias a todos los usuarios de Palabot:\n🪏repisitorio: https://github.com/cristalmirror/palabot ")).await?;
+            \n🪏`/buscarengoogle <texto de la busqueda>`este comando arroja el primer resultado de la busqueda en google, permite maximo 256 busquedas al mes
+            \n🪏`/cumpleanios <@usuario>` Permite arrojar la fecha de cumpleaños del usuario mencionado
+            \n🪏`/bloque <@usuario> <1hs/1min/etc>` (operacion no implementada) permitira a los admins silenciar a un usuario por un tiempo predeterminado
+            \n🪏Gracias a todos los usuarios de Palabot:\n🪏repositorio: https://github.com/cristalmirror/palabot ")).await?;
         }
     }
     Ok(())
