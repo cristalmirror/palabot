@@ -35,6 +35,8 @@ enum Commands {
     Cumpleanios(String),
     #[command( description = "Silencia a un usuario por una hora (Solo Admins). ")]
     Bloqueo(String),
+    #[command( description = "Instructivo de uso del Palabot...")]
+    Start,
 
 }
 //Structure to own DB json
@@ -151,7 +153,16 @@ async fn answer(
         Commands::Bloqueo(mencion) => {
             //La logica de bloqueo requiere verificar permisos de admin
             //Teloxide maneja estas peticiones a la API de telegram [4]
-          bot.send_message(msg.chat.id, format!("Usuario Bloqueado: {}", mencion)).await?;
+          bot.send_message(msg.chat.id, format!("Usuario Bloqueado: {} (Operacion aun no implementada)", mencion)).await?;
+        }
+
+        Commands::Start => {
+            bot.send_message(msg.chat.id, format!("  🪏Bienvenido al Palabot🪏🪏Coamndos:
+            \n\n🪏`/start` Muestra la lista de comandos del palabot
+            \n🪏`/buscarengoogle <texto de la busqueda>`este comando arroja el primer resultado de la busqueda en goole, permite maximo 256 busquedas al mes
+            \n🪏`/cumpleanios <@usuario>` Pemite arrojal la fecha de cumpleanios del usuario mencionado
+            \n🪏`/bloque <@usuario> <1hs/1min/etc>` (operacion no implementada) permitira a los admins cilenciar a un usuario por un tiempo predeterminado
+            \n🪏Gracias a todos los usuarios de Palabot:\n🪏repisitorio: https://github.com/cristalmirror/palabot ")).await?;
         }
     }
     Ok(())
