@@ -1,3 +1,9 @@
-/target/debug/db.json
-*.json
+# Ignorar la carpeta de compilación de Rust
+target/
 
+# Ignorar archivos de bloqueo del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Opcional: Ignorar variables de entorno si contienen tokens sensibles
+.env

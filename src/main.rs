@@ -119,7 +119,7 @@ async fn answer(
         Commands::Cumpleanios(mencion) => {
             println!("[BOT]: cumpleanios init");
             //read the db archive
-            let data = std::fs::read_to_string("db.json").expect("[BOT]: can't read the DB of the bot");
+            let data = std::fs::read_to_string("src/db.json").expect("[BOT]: can't read the DB of the bot");
             println!("[BOT]: db has read");
             //interprete the content of json with serde
             let db: Database = match serde_json::from_str(&data) {
