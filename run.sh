@@ -7,7 +7,7 @@ if [ $1 == "-t" ]; then
 elif [ $1 == "-m" ]; then
     echo "Main set option commands"
     exec ./target/debug/tsbpal "token" "serpapi_token"
-elif [$1 == "--man" || $1 "-h" ]; then
+elif [[ $1 == "--man" || $1 "-h" ]]; then
     echo"-t to the testing"
     echo "-m to the main"
 fi
