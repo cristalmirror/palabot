@@ -1,5 +1,5 @@
 {
     "users":[
-        {"name": "@Csirg","birthday":"17-02"}
+        {"name": "@user","birthday":"01-02","chat_id":-1001234567890 }
     ]
 }
