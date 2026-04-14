@@ -7,3 +7,4 @@ Thumbs.db
 
 # Opcional: Ignorar variables de entorno si contienen tokens sensibles
 .env
+run.sh
