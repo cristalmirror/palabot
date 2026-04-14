@@ -1,10 +1,13 @@
-# Ignorar la carpeta de compilación de Rust
-target/
+# --- Seguridad ---
+# Ignorar variables de entorno (¡Muy importante por el token de Telegram!)
+.env
+.env.*
+! .env.example
 
-# Ignorar archivos de bloqueo del sistema operativo
+# --- Sistema ---
 .DS_Store
 Thumbs.db
 
-# Opcional: Ignorar variables de entorno si contienen tokens sensibles
-.env
+# --- Ejecutables ---
+# Si compilas manualmente y generas el binario en la raíz
 run.sh
