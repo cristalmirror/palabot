@@ -1,3 +1,11 @@
+# --- Rust ---
+# Ignorar la carpeta de compilación (indispensable)
+target/
+
+# Archivos temporales de edición (por si usas VS Code u otros)
+**/*.rs.bk
+*.swp
+
 # --- Seguridad ---
 # Ignorar variables de entorno (¡Muy importante por el token de Telegram!)
 .env
@@ -11,3 +19,4 @@ Thumbs.db
 # --- Ejecutables ---
 # Si compilas manualmente y generas el binario en la raíz
 run.sh
+palabot
