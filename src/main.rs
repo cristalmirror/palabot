@@ -113,7 +113,7 @@ async fn answer(
                     let link = res["link"].as_str().unwrap_or("");
                     let snippet = res["snippet"].as_str().unwrap_or("");
 
-                     bot.send_message(msg.chat.id,format!(
+                     bot.send_message(msg.chat.id,format!(//mesagges results
                         "{}\n\n{}\n\n{}\n\n",
                         link, title, snippet
                     )).await?;
