@@ -95,6 +95,7 @@ async fn answer(
             let client = Client::new(options).unwrap();
             let results = client.search(HashMap::new())
                                 .await.expect("request");
+            let title_init_result = String::from("🌐Resultados de la Busqueda\n\n");
             println!("Resultado JSON: {}", serde_json::to_string_pretty(&results).unwrap());
             if let Some(references) = results["ai_overview"]["snippet"].as_array() {//trying catch the IA reference
                 if !references.is_empty() {
@@ -105,13 +106,20 @@ async fn answer(
                 } else {
                    let _ = bot.send_message(msg.chat.id, "No se encontraron referencias.").await;
                 }
-            } else if let Some(first_result) = results["organic_results"].as_array().and_then(|a| a.get(0)) {//if haven't ia snippet in the JSON respose
-                let title = first_result["title"].as_str().unwrap_or("Sin título");
-                let link = first_result["link"].as_str().unwrap_or("");
-                let snippet = first_result["snippet"].as_str().unwrap_or("");
-        
-                let respuesta = format!("🌐 Resultado principal:\n\n**{}**\n{}\n\n{}", title, snippet, link);
-                bot.send_message(msg.chat.id, respuesta).await?;
+            } else if let Some(array) = results["organic_results"].as_array() {//if haven't ia snippet in the JSON respose
+                bot.send_message(msg.chat.id,title_init_result).await?;
+                for res in array {
+                    let title = res["title"].as_str().unwrap_or("Sin título");
+                    let link = res["link"].as_str().unwrap_or("");
+                    let snippet = res["snippet"].as_str().unwrap_or("");
+
+                     bot.send_message(msg.chat.id,format!(
+                        "{}\n\n{}\n\n{}\n\n",
+                        link, title, snippet
+                    )).await?;
+                }
+                
+                
             } else {
                 bot.send_message(msg.chat.id, "Google no proporcionó referencias de IA.").await?;
             }
