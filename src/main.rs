@@ -108,7 +108,7 @@ async fn answer(
                 }
             } else if let Some(array) = results["organic_results"].as_array() {//if haven't ia snippet in the JSON respose
                 bot.send_message(msg.chat.id,title_init_result).await?;
-                for res in array {
+                for res in array {//select element of the results
                     let title = res["title"].as_str().unwrap_or("Sin título");
                     let link = res["link"].as_str().unwrap_or("");
                     let snippet = res["snippet"].as_str().unwrap_or("");
