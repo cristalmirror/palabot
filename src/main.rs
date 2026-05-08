@@ -173,11 +173,11 @@ async fn answer(
             let sender_member = bot.get_chat_member(chat_id, send.id).await?;
             let is_admin = matches!(
                 sender_member.status(),
-                teloxide::types::ChatMemberStatus::Adiministrator | teloxide::types::ChatMemberStatus::Owner
+                teloxide::types::ChatMemberStatus::Administrator | teloxide::types::ChatMemberStatus::Owner
             );
 
             //parse arguments first token = @user, second (option) = minutes
-            let mut parts = mencion.spit=whitespace();
+            let mut parts = mencion.split_whitespace();
             let username_raw = match parts.next() {
                 Some(u) => u.trim_start_matches('@').to_string(),
                 None => {
@@ -198,23 +198,23 @@ async fn answer(
             let target_member = bot.get_chat_member(chat_id, target_id).await?;
             if matches!(
                 target_member.status(),
-                teloxide::types::ChatMemberStatus::Adiministrator | teloxide::types::ChatMemberStatus::Owner
+                teloxide::types::ChatMemberStatus::Administrator | teloxide::types::ChatMemberStatus::Owner
             ) {
                 bot.send_message(chat_id,"❌ No puedes silenciar a un administrador.").await?;
                 return Ok(());
             }
 
             //calculation timeestamp of expirations
-            let until_ts = std::time::System::now()
+            let until_ts = System::now()
                 .duration_since()
                 .unwrap()
-                .as_secs() as i64 + (minutes * 60) as i64;
+                .as_secs() as i64 + (&minutes * 60) as i64;
 
-            bot.restrict_chat_member(chat_id, target_id, teloxide::types::empty())
+            bot.restrict_chat_member(chat_id, target_id, empty())
                 .until_date(until_ts)
                 .await?;
 
-            bot.send_message(chat_id,format!("🔇 @{target_name} silenciado por {minutes} minuto(s).\na casa papu!!")).await?;
+            bot.send_message(chat_id,format!("🔇 @{target_name} silenciado por {&minutes} minuto(s).\na casa papu!!")).await?;
             
             //Teloxide maneja estas peticiones a la API de telegram [4]
             bot.send_message(msg.chat.id, format!("Usuario Bloqueado: {} (Operacion aun no implementada)", mencion)).await?;
