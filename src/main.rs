@@ -1,13 +1,15 @@
+
 use teloxide::prelude::*;
 use teloxide::utils::command::BotCommands;
 use serpapi::serpapi::Client;
 use std::collections::HashMap;
+use std::result;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::env;
 use serde::Deserialize;
-use chrono::{Local, Datelike, Duration as ChronoDuration};
-
+use chrono::{Local,Utc, Datelike, Duration as ChronoDuration};
+use teloxide::types::ChatId;
 
 
 
@@ -67,9 +69,20 @@ async fn main() -> Result<(), Error> {
     });
 
     let handler = Update::filter_message()
-        .filter_command::<Commands>()
-        .endpoint(answer);
-    
+        .branch(
+            dptree::filter(|msg: Message| {
+                msg.text()
+                    .map(|t| {
+                        let lower = t.to_lowercase();
+                        lower.starts_with("googlear ") || lower.starts_with("buscar en google ")
+                    }).unwrap_or(false)
+            }).endpoint(auto_search_handler)
+        )
+        .branch(
+            dptree::entry()
+                .filter_command::<Commands>()
+                .endpoint(answer)
+    );
     Dispatcher::builder(bot, handler)
         .dependencies(dptree::deps![db])
         .build()
@@ -170,30 +183,29 @@ async fn answer(
             };
 
             //verify that the sender is admin or owner
-            let sender_member = bot.get_chat_member(chat_id, send.id).await?;
+            let sender_member = bot.get_chat_member(chat_id, sender.id).await?;
             let is_admin = matches!(
                 sender_member.status(),
                 teloxide::types::ChatMemberStatus::Administrator | teloxide::types::ChatMemberStatus::Owner
             );
 
-            //parse arguments first token = @user, second (option) = minutes
-            let mut parts = mencion.split_whitespace();
-            let username_raw = match parts.next() {
-                Some(u) => u.trim_start_matches('@').to_string(),
+            if !is_admin {
+                bot.send_message(chat_id, "Solo los asdminitradores pueden usar este comando. A casa papu...").await?;
+                return Ok(());
+            }
+
+            //optional minutes of the arguments
+            let minutes: i64 = mencion.trim().parse().unwrap_or(60);
+
+            //the target has taked of the message that is responded
+            let(target_id, target_name) = match msg.reply_to_message().and_then(|m| m.from()){
+                Some(user) => (user.id, user.username.clone().unwrap_or_else(|| user.first_name.clone())),
                 None => {
-                    bot.send_message(chat_id, "⚠️ Uso: /bloqueo @usuario [minutos]").await?;
+                    bot.send_message(chat_id, "Responder al usuario que queres quieres silenciar. Uso: /bloqueo [minutos]").await?;
                     return Ok(());
                 }
             };
-
-            let (target_id, target_name) = match target {
-                Some(t)=> t,
-                None => {
-                    bot.send_message(chat_id,"❌ No pude encontrar a ese usuario. Prueba respondiendo su mensaje.").await?;
-                    return Ok(());
-                }
-            };
-
+            
             //can't block others admins
             let target_member = bot.get_chat_member(chat_id, target_id).await?;
             if matches!(
@@ -205,19 +217,14 @@ async fn answer(
             }
 
             //calculation timeestamp of expirations
-            let until_ts = System::now()
-                .duration_since()
-                .unwrap()
-                .as_secs() as i64 + (&minutes * 60) as i64;
+            let until_ts = Utc::now() + ChronoDuration::minutes(minutes);
 
-            bot.restrict_chat_member(chat_id, target_id, empty())
+            bot.restrict_chat_member(chat_id, target_id, teloxide::types::ChatPermissions::empty())
                 .until_date(until_ts)
                 .await?;
 
-            bot.send_message(chat_id,format!("🔇 @{target_name} silenciado por {&minutes} minuto(s).\na casa papu!!")).await?;
+            bot.send_message(chat_id,format!("🔇 @{target_name} silenciado por {minutes} minuto(s).\na casa papu!!")).await?;
             
-            //Teloxide maneja estas peticiones a la API de telegram [4]
-            bot.send_message(msg.chat.id, format!("Usuario Bloqueado: {} (Operacion aun no implementada)", mencion)).await?;
         }
 
         Commands::Start => {
@@ -275,4 +282,51 @@ async fn start_birtday_scheduler(bot: Bot) {
             log::error!("Error en la tarea de Cumleaños: {}",e);
         }
     }
+}
+
+
+//Google IA mode respose
+
+async fn auto_serarch_ia(bot: &Bot, chat_id: ChatId, query: String) -> Result<(), Error> {
+    let args: Vec<String> = env::args().collect();
+    let mut options = HashMap::new();
+
+    options.insert("api_key".to_string(), args[2].clone());
+    options.insert("engine".to_string(),"google".to_string());
+    options.insert("q".to_string(), query);
+
+    let client = Client::new(options).unwrap();
+    let results = client.search(HashMap::new()).await.expect("request");
+
+    //print all JSON of the search
+    println!("JSON completo: {}", serde_json::to_string_pretty(&results).unwrap());
+
+    if let Some(text_blocks) = results["ai_overview"]["text_blocks"].as_array() {
+        let respuestas = text_blocks.iter()
+            .filter_map(|b| b["snippet"].as_str())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+
+        if !respuestas.is_empty() {
+            bot.send_message(chat_id, format!("🤖 Google IA: {}\n\n", respuestas)).await?;
+        }
+    } else {
+        bot.send_message(chat_id,"🤖 Google no genero una respuesta de IA para esa busqueda").await?;
+    }
+    Ok(()) 
+}
+
+async fn auto_search_handler(bot: Bot, msg: Message) -> Result<(), Error> {
+    if let Some(text) = msg.text() {
+        let lower = text.to_lowercase();
+        let query = if lower.starts_with("googlear ") {
+            text["googlear ".len()..].trim().to_string()
+        } else if lower.starts_with("buscar en google ") {
+            text["buscar en google ".len()..].trim().to_string()
+        } else {
+            return Ok(());
+        };
+        auto_serarch_ia(&bot,msg.chat.id,query).await?;
+    }
+    Ok(())
 }
