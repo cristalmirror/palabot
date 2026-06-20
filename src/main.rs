@@ -71,11 +71,13 @@ async fn main() -> Result<(), Error> {
     let handler = Update::filter_message()
         .branch(
             dptree::filter(|msg: Message| {
-                msg.text()
+                let result = msg.text()
                     .map(|t| {
                         let lower = t.to_lowercase();
                         lower.starts_with("googlear ") || lower.starts_with("buscar en google ")
-                    }).unwrap_or(false)
+                    }).unwrap_or(false);
+                println!("[FILTER] texto  recibido: {:?}",result);
+                result
             }).endpoint(auto_search_handler)
         )
         .branch(
@@ -108,33 +110,19 @@ async fn answer(
             let client = Client::new(options).unwrap();
             let results = client.search(HashMap::new())
                                 .await.expect("request");
-            let title_init_result = String::from("🌐Resultados de la Busqueda\n\n");
+            
             println!("Resultado JSON: {}", serde_json::to_string_pretty(&results).unwrap());
             if let Some(references) = results["ai_overview"]["snippet"].as_array() {//trying catch the IA reference
                 if !references.is_empty() {
                     let respose_ia = references[0]["snippet"]          
                         .as_str()
                         .unwrap_or("No se encontró una respuesta de la IA.");               
-                   let _ = bot.send_message(msg.chat.id, respose_ia).await;
+                    let _ = bot.send_message(msg.chat.id, respose_ia).await;
                 } else {
                    let _ = bot.send_message(msg.chat.id, "No se encontraron referencias.").await;
                 }
-            } else if let Some(array) = results["organic_results"].as_array() {//if haven't ia snippet in the JSON respose
-                bot.send_message(msg.chat.id,title_init_result).await?;
-                for res in array {//select element of the results
-                    let title = res["title"].as_str().unwrap_or("Sin título");
-                    let link = res["link"].as_str().unwrap_or("");
-                    let snippet = res["snippet"].as_str().unwrap_or("");
-
-                     bot.send_message(msg.chat.id,format!(//mesagges results
-                        "{}\n\n{}\n\n{}\n\n",
-                        link, title, snippet
-                    )).await?;
-                }
-                
-                
             } else {
-                bot.send_message(msg.chat.id, "Google no proporcionó referencias de IA.").await?;
+                send_organic_results(&bot, msg.chat.id, &results).await?;
             }
         }
         Commands::Cumpleanios(mencion) => {
@@ -309,14 +297,26 @@ async fn auto_serarch_ia(bot: &Bot, chat_id: ChatId, query: String) -> Result<()
 
         if !respuestas.is_empty() {
             bot.send_message(chat_id, format!("🤖 Google IA: {}\n\n", respuestas)).await?;
+        } else if let Some(references) = results["ai_overview"]["snippet"].as_array() {//trying catch the IA reference
+            if !references.is_empty() {
+                let respose_ia = references[0]["snippet"]          
+                    .as_str()
+                    .unwrap_or("No se encontró una respuesta de la IA.");               
+                let _ = bot.send_message(chat_id, respose_ia).await;
+            } else {
+                let _ = bot.send_message(chat_id, "No se encontraron referencias.").await;
+            }
+        } else {
+            send_organic_results(bot, chat_id, &results).await?;
         }
     } else {
-        bot.send_message(chat_id,"🤖 Google no genero una respuesta de IA para esa busqueda").await?;
+        send_organic_results(bot, chat_id, &results).await?;
     }
     Ok(()) 
 }
 
 async fn auto_search_handler(bot: Bot, msg: Message) -> Result<(), Error> {
+    println!("[DEBUG] handler llamado texto: {:?}",msg.text());
     if let Some(text) = msg.text() {
         let lower = text.to_lowercase();
         let query = if lower.starts_with("googlear ") {
@@ -327,6 +327,30 @@ async fn auto_search_handler(bot: Bot, msg: Message) -> Result<(), Error> {
             return Ok(());
         };
         auto_serarch_ia(&bot,msg.chat.id,query).await?;
+    }
+    Ok(())
+}
+
+/*
+this function is used to answer() and auto_search_ia()
+to create the messages if the IA mode not make a respose
+*/ 
+async fn send_organic_results(bot: &Bot, chat_id: ChatId, results: &serde_json::Value) -> Result<(),Error> {
+    let title_init_result = String::from("🔎​ Resultados de la busqueda\n\n");
+    if let Some(array) = results["organic_results"].as_array() {//if haven't ia snippet in the JSON respose
+        bot.send_message(chat_id,title_init_result).await?;
+        for res in array {//select element of the results
+            let title = res["title"].as_str().unwrap_or("Sin título");
+            let link = res["link"].as_str().unwrap_or("");
+            let snippet = res["snippet"].as_str().unwrap_or("");
+
+            bot.send_message(chat_id,format!(//mesagges results
+                "{}\n\n{}\n\n{}\n\n",
+                link, title, snippet
+            )).await?;
+        }            
+    } else {
+        bot.send_message(chat_id, "Google no proporcionó referencias de IA.").await?;
     }
     Ok(())
 }
