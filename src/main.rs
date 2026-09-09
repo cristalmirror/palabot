@@ -260,9 +260,10 @@ async fn answer(
         Commands::Start => {
              bot.send_message(msg.chat.id, "  🪏Bienvenido al Palabot🪏🪏Coamndos:
             \n\n🪏`/start` Muestra la lista de comandos del palabot
-            \n🪏`/buscarengoogle <texto de la busqueda>`este comando arroja el primer resultado de la busqueda en google, permite maximo 256 busquedas al mes
+            \n🪏`/buscarengoogle <texto de la busqueda> || googlear <texto de la busqueda> `este comando arroja el primer resultado de la busqueda en google, permite maximo 256 busquedas al mes
             \n🪏`/cumpleanios <@usuario>` Permite arrojar la fecha de cumpleaños del usuario mencionado
             \n🪏`/bloque <@usuario> <1hs/1min/etc>` (operacion no implementada) permitira a los admins silenciar a un usuario por un tiempo predeterminado
+            \n🪏 Responder a un audio `Escribir || escribir` : hace que se transcriba un audio.
             \n🪏Gracias a todos los usuarios de Palabot:\n🪏repositorio: https://github.com/cristalmirror/palabot ").await?;
         }
     }
