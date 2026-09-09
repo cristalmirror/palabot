@@ -21,3 +21,4 @@ Thumbs.db
 # Si compilas manualmente y generas el binario en la raíz
 run.sh
 palabot
+models/*.bin

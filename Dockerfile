@@ -29,13 +29,18 @@ RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
         ca-certificates \
         ffmpeg \
+        wget \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=builder /app/target/release/tsbpal /app/tsbpal
 
-# The model is intentionally mounted from the host instead of copied into the image.
+# The model is downloaded during the image build instead of being committed to git.
+RUN mkdir -p /app/models \
+    && wget -q -O /app/models/ggml-base.bin \
+        https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin \
+    && test -s /app/models/ggml-base.bin
+
 ENV WHISPER_MODEL_PATH=/app/models/ggml-base.bin
-VOLUME ["/app/models"]
 
 ENTRYPOINT ["/app/tsbpal"]
