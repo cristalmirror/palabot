@@ -3,7 +3,7 @@ The major part of my repositories has made with vibe coding, isn't professionals
 
 ## To use:
 
-``
+```
  cd ~/palabot
 
   docker build -t palabot:local .
@@ -15,4 +15,4 @@ The major part of my repositories has made with vibe coding, isn't professionals
     palabot:local \
     TU_TOKEN_DE_TELEGRAM \
     TU_API_KEY_DE_SERPAPI
-``
+```
