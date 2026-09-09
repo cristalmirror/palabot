@@ -3,15 +3,14 @@ use teloxide::prelude::*;
 use teloxide::utils::command::BotCommands;
 use serpapi::serpapi::Client;
 use std::collections::HashMap;
-use std::result;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::env;
 use serde::Deserialize;
 use chrono::{Local,Utc, Datelike, Duration as ChronoDuration};
 use teloxide::types::ChatId;
-
-
+mod transcribe;
+use transcribe::handle_voice_message;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
@@ -71,6 +70,14 @@ async fn main() -> Result<(), Error> {
     let handler = Update::filter_message()
         .branch(
             dptree::filter(|msg: Message| {
+                msg.text()
+                    .is_some_and(|text| text.trim().eq_ignore_ascii_case("escribir"))
+                    && msg.reply_to_message().is_some()
+            })
+            .endpoint(transcription_handler)
+        )
+        .branch(
+            dptree::filter(|msg: Message| {
                 let result = msg.text()
                     .map(|t| {
                         let lower = t.to_lowercase();
@@ -90,6 +97,32 @@ async fn main() -> Result<(), Error> {
         .build()
         .dispatch()
         .await;
+    Ok(())
+}
+
+async fn transcription_handler(bot: Bot, msg: Message) -> Result<(), Error> {
+    match handle_voice_message(bot.clone(), msg.clone()).await {
+        Ok(transcription) if transcription.is_empty() => {
+            bot.send_message(
+                msg.chat.id,
+                "No detecté palabras en ese audio. Probá con una nota de voz más clara.",
+            )
+            .await?;
+        }
+        Ok(transcription) => {
+            bot.send_message(msg.chat.id, format!("📝 Transcripción:\n\n{transcription}"))
+                .await?;
+        }
+        Err(error) => {
+            log::error!("No se pudo transcribir el audio: {error:#}");
+            bot.send_message(
+                msg.chat.id,
+                "No pude transcribir ese audio. Confirmá que respondiste a una nota de voz o audio e intentá nuevamente.",
+            )
+            .await?;
+        }
+    }
+
     Ok(())
 }
 
@@ -216,12 +249,12 @@ async fn answer(
         }
 
         Commands::Start => {
-             bot.send_message(msg.chat.id, format!("  🪏Bienvenido al Palabot🪏🪏Coamndos:
+             bot.send_message(msg.chat.id, "  🪏Bienvenido al Palabot🪏🪏Coamndos:
             \n\n🪏`/start` Muestra la lista de comandos del palabot
             \n🪏`/buscarengoogle <texto de la busqueda>`este comando arroja el primer resultado de la busqueda en google, permite maximo 256 busquedas al mes
             \n🪏`/cumpleanios <@usuario>` Permite arrojar la fecha de cumpleaños del usuario mencionado
             \n🪏`/bloque <@usuario> <1hs/1min/etc>` (operacion no implementada) permitira a los admins silenciar a un usuario por un tiempo predeterminado
-            \n🪏Gracias a todos los usuarios de Palabot:\n🪏repositorio: https://github.com/cristalmirror/palabot ")).await?;
+            \n🪏Gracias a todos los usuarios de Palabot:\n🪏repositorio: https://github.com/cristalmirror/palabot ").await?;
         }
     }
     Ok(())
@@ -336,7 +369,7 @@ this function is used to answer() and auto_search_ia()
 to create the messages if the IA mode not make a respose
 */ 
 async fn send_organic_results(bot: &Bot, chat_id: ChatId, results: &serde_json::Value) -> Result<(),Error> {
-    let title_init_result = String::from("🔎​ Resultados de la busqueda\n\n");
+    let title_init_result = String::from("🔎 Resultados de la busqueda\n\n");
     if let Some(array) = results["organic_results"].as_array() {//if haven't ia snippet in the JSON respose
         bot.send_message(chat_id,title_init_result).await?;
         for res in array {//select element of the results
