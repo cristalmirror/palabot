@@ -9,7 +9,6 @@ path = "src/main.rs"
 
 [dependencies]
 teloxide = {version = "0.12", features = ["macros", "throttle"] }
-reqwest = { version = "0.12", features = ["json", "hickory-dns"]}
 tokio = { version = "1", features = ["full"] }
 log = "0.4"
 pretty_env_logger = "0.5"
@@ -20,4 +19,5 @@ serpapi = "1.1.0"
 chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1.0"
 tempfile = "3.3"
-base64 = "0.22"
+hound = "3.5"
+whisper-rs = "0.16"

@@ -1,62 +1,22 @@
-//! Telegram audio download and Google Speech-to-Text integration.
+//! Telegram audio download and local Whisper transcription.
 //!
-//! The public entry point is [`handle_voice_message`]. All files are created
-//! as temporary files and are removed automatically when the request ends.
+//! Set `WHISPER_MODEL_PATH` to a local GGML/GGUF Whisper model file. The model
+//! is never downloaded by the bot, so its version remains under operator control.
 
 use anyhow::{anyhow, Context};
-use base64::{engine::general_purpose, Engine as _};
-use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use std::env;
-use std::path::Path;
+use hound::{SampleFormat, WavReader};
+use std::{env, path::{Path, PathBuf}};
 use teloxide::{net::Download, prelude::*};
 use tempfile::NamedTempFile;
-use tokio::{fs, io::AsyncWriteExt, process::Command};
+use tokio::{io::AsyncWriteExt, process::Command};
+use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-/// Google Speech-to-Text settings for the generated WAV file.
-struct RecognitionConfig {
-    encoding: String,
-    sample_rate_hertz: i32,
-    language_code: String,
-}
-
-#[derive(Serialize)]
-/// Base64-encoded audio payload expected by Google Speech-to-Text.
-struct RecognitionAudio {
-    content: String,
-}
-
-#[derive(Serialize)]
-/// JSON body sent to the synchronous Google Speech-to-Text endpoint.
-struct RecognizeRequest {
-    config: RecognitionConfig,
-    audio: RecognitionAudio,
-}
-
-#[derive(Deserialize)]
-/// A candidate transcript returned by Google.
-struct SpeechRecognitionAlternative {
-    transcript: Option<String>,
-}
-
-#[derive(Deserialize)]
-/// A section of speech recognition output.
-struct SpeechRecognitionResult {
-    alternatives: Option<Vec<SpeechRecognitionAlternative>>,
-}
-
-#[derive(Deserialize)]
-/// Top-level response returned by Google Speech-to-Text.
-struct RecognizeResponse {
-    results: Option<Vec<SpeechRecognitionResult>>,
-}
+const SAMPLE_RATE: u32 = 16_000;
 
 /// Transcribes a voice note or audio file in the message being replied to.
 ///
 /// The reply must contain either a Telegram voice note or an audio document.
-/// The input is converted to 16 kHz mono WAV before it is sent to Google.
+/// Audio is converted to 16 kHz mono PCM WAV before local Whisper inference.
 pub async fn handle_voice_message(bot: Bot, msg: Message) -> anyhow::Result<String> {
     let replied_message = msg
         .reply_to_message()
@@ -72,22 +32,22 @@ pub async fn handle_voice_message(bot: Bot, msg: Message) -> anyhow::Result<Stri
     let output_file = NamedTempFile::new().context("creating temporary WAV file")?;
 
     convert_to_wav(input_file.path(), output_file.path()).await?;
-    transcribe_file(output_file.path()).await
+
+    let model_path = env::var("WHISPER_MODEL_PATH")
+        .context("WHISPER_MODEL_PATH must point to a local Whisper model file")?;
+    transcribe_wav(output_file.path(), PathBuf::from(model_path)).await
 }
 
 /// Downloads a Telegram file into a temporary file using the authenticated bot.
 ///
-/// This intentionally uses `Bot::download_file` instead of constructing a URL
-/// from an environment token, so it works whether the token was passed through
-/// the command line or `TELOXIDE_TOKEN`.
+/// The temporary-file owner remains alive until transcription has completed, so
+/// its path is removed automatically after the request.
 async fn download_telegram_file(bot: &Bot, file_id: &str) -> anyhow::Result<NamedTempFile> {
     let file = bot
         .get_file(file_id.to_owned())
         .await
         .context("getting file metadata from Telegram")?;
 
-    // `reopen` gives Tokio an independent file handle while `temp_file` keeps
-    // ownership of the path and removes it automatically on drop.
     let temp_file = NamedTempFile::new().context("creating temporary audio file")?;
     let mut destination = tokio::fs::File::from_std(
         temp_file
@@ -106,14 +66,23 @@ async fn download_telegram_file(bot: &Bot, file_id: &str) -> anyhow::Result<Name
     Ok(temp_file)
 }
 
-/// Converts Telegram's OGG/MP3 audio to the WAV format required by Google.
+/// Converts input audio to the PCM format accepted by Whisper.
 ///
 /// `ffmpeg` must be installed and available through `PATH` at runtime.
 async fn convert_to_wav(input_path: &Path, output_path: &Path) -> anyhow::Result<()> {
     let status = Command::new("ffmpeg")
         .args(["-y", "-i"])
         .arg(input_path)
-        .args(["-ar", "16000", "-ac", "1", "-f", "wav"])
+        .args([
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            "-c:a",
+            "pcm_s16le",
+            "-f",
+            "wav",
+        ])
         .arg(output_path)
         .status()
         .await
@@ -126,57 +95,86 @@ async fn convert_to_wav(input_path: &Path, output_path: &Path) -> anyhow::Result
     Ok(())
 }
 
-/// Sends a WAV file to Google Speech-to-Text and returns its first transcript.
+/// Runs CPU-bound Whisper inference outside Tokio's asynchronous worker threads.
+async fn transcribe_wav(wav_path: &Path, model_path: PathBuf) -> anyhow::Result<String> {
+    let wav_path = wav_path.to_owned();
+
+    tokio::task::spawn_blocking(move || transcribe_wav_blocking(&wav_path, &model_path))
+        .await
+        .context("the Whisper transcription task stopped unexpectedly")?
+}
+
+/// Loads the model, validates PCM WAV input, and returns the joined segments.
 ///
-/// Google requires an OAuth access token in `GOOGLE_OAUTH_TOKEN`. The function
-/// returns an empty string when Google accepts the audio but finds no speech.
-async fn transcribe_file(wav_path: &Path) -> anyhow::Result<String> {
-    let bytes = fs::read(wav_path)
-        .await
-        .with_context(|| format!("reading temporary WAV file: {}", wav_path.display()))?;
-
-    let request = RecognizeRequest {
-        config: RecognitionConfig {
-            encoding: "LINEAR16".to_owned(),
-            sample_rate_hertz: 16_000,
-            language_code: "es-ES".to_owned(),
-        },
-        audio: RecognitionAudio {
-            content: general_purpose::STANDARD.encode(bytes),
-        },
-    };
-
-    let oauth_token = env::var("GOOGLE_OAUTH_TOKEN")
-        .context("GOOGLE_OAUTH_TOKEN environment variable is not configured")?;
-
-    let response = Client::new()
-        .post("https://speech.googleapis.com/v1/speech:recognize")
-        .bearer_auth(oauth_token)
-        .json(&request)
-        .send()
-        .await
-        .context("sending audio to Google Speech-to-Text")?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        return Err(anyhow!("Google Speech-to-Text returned {status}: {body}"));
+/// A model is loaded per request to keep the state isolated and the code simple.
+/// If traffic grows, this function can be changed to reuse a shared context.
+fn transcribe_wav_blocking(wav_path: &Path, model_path: &Path) -> anyhow::Result<String> {
+    if !model_path.is_file() {
+        return Err(anyhow!(
+            "Whisper model file does not exist: {}",
+            model_path.display()
+        ));
     }
 
-    let response: RecognizeResponse = response
-        .json()
-        .await
-        .context("parsing Google Speech-to-Text response")?;
+    let samples = read_pcm_samples(wav_path)?;
+    let context = WhisperContext::new_with_params(model_path, WhisperContextParameters::default())
+        .context("loading the local Whisper model")?;
+    let mut state = context.create_state().context("creating Whisper state")?;
 
-    let transcript = response
-        .results
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|result| result.alternatives)
-        .filter_map(|alternatives| alternatives.into_iter().next())
-        .filter_map(|alternative| alternative.transcript)
-        .collect::<Vec<_>>()
-        .join(" ");
+    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+    params.set_language(Some("es"));
+    params.set_translate(false);
+    params.set_no_timestamps(true);
+    params.set_n_threads(whisper_thread_count());
 
-    Ok(transcript.trim().to_owned())
+    state.full(params, &samples).context("running local Whisper inference")?;
+
+    state
+        .as_iter()
+        .map(|segment| segment.to_str().map(str::trim).map(str::to_owned))
+        .collect::<Result<Vec<_>, _>>()
+        .context("reading Whisper transcription segments")
+        .map(|segments| {
+            segments
+                .into_iter()
+                .filter(|segment| !segment.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+}
+
+/// Reads the 16-bit PCM WAV created by [`convert_to_wav`] as normalized samples.
+fn read_pcm_samples(wav_path: &Path) -> anyhow::Result<Vec<f32>> {
+    let mut reader = WavReader::open(wav_path)
+        .with_context(|| format!("opening temporary WAV file: {}", wav_path.display()))?;
+    let spec = reader.spec();
+
+    if spec.channels != 1
+        || spec.sample_rate != SAMPLE_RATE
+        || spec.bits_per_sample != 16
+        || spec.sample_format != SampleFormat::Int
+    {
+        return Err(anyhow!(
+            "unexpected WAV format; expected 16 kHz, mono, signed 16-bit PCM"
+        ));
+    }
+
+    reader
+        .samples::<i16>()
+        .map(|sample| sample.map(|value| f32::from(value) / f32::from(i16::MAX)))
+        .collect::<Result<Vec<_>, _>>()
+        .context("reading PCM samples from temporary WAV file")
+}
+
+/// Returns a conservative CPU thread count, configurable with `WHISPER_THREADS`.
+fn whisper_thread_count() -> i32 {
+    env::var("WHISPER_THREADS")
+        .ok()
+        .and_then(|value| value.parse::<i32>().ok())
+        .filter(|&threads| threads > 0)
+        .unwrap_or_else(|| {
+            std::thread::available_parallelism()
+                .map(|count| count.get().min(4) as i32)
+                .unwrap_or(1)
+        })
 }
