@@ -46,6 +46,8 @@ type Db = Arc<Mutex<HashMap<String,String>>>;
 //main function with tokio traits
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    pretty_env_logger::init();
+
     //collect the arguments to execute the token
     let args: Vec<String> = env::args().collect();
 
@@ -70,9 +72,16 @@ async fn main() -> Result<(), Error> {
     let handler = Update::filter_message()
         .branch(
             dptree::filter(|msg: Message| {
-                msg.text()
+                let is_transcription_command = msg
+                    .text()
                     .is_some_and(|text| text.trim().eq_ignore_ascii_case("escribir"))
-                    && msg.reply_to_message().is_some()
+;
+                let is_reply = msg.reply_to_message().is_some();
+                println!(
+                    "[TRANSCRIPTION FILTER] escribir={}, respuesta_a_audio={} ",
+                    is_transcription_command, is_reply
+                );
+                is_transcription_command && is_reply
             })
             .endpoint(transcription_handler)
         )

@@ -2,6 +2,7 @@
 # Ignorar la carpeta de compilación (indispensable)
 target/
 
+
 # Archivos temporales de edición (por si usas VS Code u otros)
 **/*.rs.bk
 *.swp

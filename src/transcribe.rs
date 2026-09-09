@@ -1,7 +1,8 @@
 //! Telegram audio download and local Whisper transcription.
 //!
-//! Set `WHISPER_MODEL_PATH` to a local GGML/GGUF Whisper model file. The model
-//! is never downloaded by the bot, so its version remains under operator control.
+//! Set `WHISPER_MODEL_PATH` to a local GGML/GGUF Whisper model file. If the
+//! variable is not set, the bot looks for `models/ggml-base.bin`. The model is
+//! never downloaded by the bot, so its version remains under operator control.
 
 use anyhow::{anyhow, Context};
 use hound::{SampleFormat, WavReader};
@@ -34,7 +35,7 @@ pub async fn handle_voice_message(bot: Bot, msg: Message) -> anyhow::Result<Stri
     convert_to_wav(input_file.path(), output_file.path()).await?;
 
     let model_path = env::var("WHISPER_MODEL_PATH")
-        .context("WHISPER_MODEL_PATH must point to a local Whisper model file")?;
+        .unwrap_or_else(|_| "models/ggml-base.bin".to_owned());
     transcribe_wav(output_file.path(), PathBuf::from(model_path)).await
 }
 
